@@ -1,4 +1,4 @@
-name: Build and Upload
+name: Build and Upload ARMv7
 
 on: [push]
 
@@ -8,20 +8,8 @@ jobs:
       matrix:
         include:
           - os: ubuntu-20.04
-            target: x86_64-unknown-linux-musl
-            dir: musl
-          - os: ubuntu-20.04
-            target: aarch64-unknown-linux-musl
-            dir: musl-arm64
-          - os: ubuntu-20.04
-            target: x86_64-unknown-linux-gnu
-            dir: gnu
-          - os: ubuntu-20.04
             target: armv7-unknown-linux-musleabihf
             dir: musl-armv7
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            dir: macos
 
     runs-on: ${{ matrix.os }}
 
@@ -30,7 +18,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install musl-tools (Linux)
-        if: ${{ contains(matrix.dir, 'musl') }}
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Install Rust
@@ -41,8 +28,7 @@ jobs:
           override: true
           target: ${{ matrix.target }}
 
-      - name: Install cross (for arm64 and armv7)
-        if: ${{ matrix.target == 'aarch64-unknown-linux-musl' || matrix.target == 'armv7-unknown-linux-musleabihf' }}
+      - name: Install cross (for armv7)
         run: cargo install cross --locked
 
       - name: Cache cargo build
@@ -51,36 +37,15 @@ jobs:
           key: ${{ matrix.target }}
           prefix-key: "lele"
 
-      - name: Build client (Release)
+      - name: Build client (Release for ARMv7)
         run: |
-          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ] || [ "${{ matrix.target }}" = "armv7-unknown-linux-musleabihf" ]; then
-            cross build --release --target "${{ matrix.target }}" --manifest-path binaries/geph5-client/Cargo.toml
-          else
-            cargo build --release --target "${{ matrix.target }}" --manifest-path binaries/geph5-client/Cargo.toml
-          fi
+          cross build --release --target "${{ matrix.target }}" --manifest-path binaries/geph5-client/Cargo.toml
 
-      - name: Move client binaries to artifacts directory
+      - name: Move client binary to artifacts directory
         shell: bash
         run: |
           mkdir -p artifacts/${{ matrix.dir }}
           mv target/${{ matrix.target }}/release/geph5-client artifacts/${{ matrix.dir }}/
-
-      - name: Install cargo-bundle
-        if: matrix.os == 'macos-latest'
-        run: cargo install cargo-bundle --locked --version "=0.6.0" --force
-
-      - name: Create macOS .app bundle (Release)
-        if: matrix.os == 'macos-latest'
-        run: |
-          cd binaries/geph5-client-gui
-          cargo bundle --release --target ${{ matrix.target }}
-
-      - name: Create macOS .app zip
-        if: matrix.os == 'macos-latest'
-        run: |
-          cd target/${{ matrix.target }}/release/bundle/osx/
-          zip -r "geph5-client-gui.app.zip" "Geph5.app"
-          mv "geph5-client-gui.app.zip" ../../../../../artifacts/${{ matrix.dir }}/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -88,56 +53,9 @@ jobs:
           name: ${{ matrix.dir }}-latest
           path: artifacts/${{ matrix.dir }}
 
-  build-bridge-exit:
-    name: Build Bridge, Exit, and Broker (Musl, Release)
-    runs-on: ubuntu-20.04
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install musl-tools
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          target: x86_64-unknown-linux-musl
-
-      - name: Set default host
-        shell: bash
-        run: rustup set default-host x86_64-unknown-linux-musl
-
-      - name: Cache cargo build
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: x86_64-unknown-linux-musl-bridge-exit
-
-      - name: Build bridge, exit, and broker (Release)
-        run: |
-          cargo build --release --target x86_64-unknown-linux-musl --manifest-path binaries/geph5-bridge/Cargo.toml
-          cargo build --release --target x86_64-unknown-linux-musl --manifest-path binaries/geph5-exit/Cargo.toml
-          cargo build --release --target x86_64-unknown-linux-musl --manifest-path binaries/geph5-broker/Cargo.toml
-
-      - name: Move bridge and exit binaries to artifacts directory
-        run: |
-          mkdir -p artifacts/musl
-          mv target/x86_64-unknown-linux-musl/release/geph5-bridge artifacts/musl/
-          mv target/x86_64-unknown-linux-musl/release/geph5-broker artifacts/musl/
-          mv target/x86_64-unknown-linux-musl/release/geph5-exit artifacts/musl/
-
-      - name: Upload bridge and exit artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: musl-latest-bridge
-          path: artifacts/musl
-
   upload:
     if: github.ref == 'refs/heads/master'
-    needs: [build, build-bridge-exit]
+    needs: [build]
     runs-on: ubuntu-20.04
 
     steps:
@@ -145,11 +63,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-
-      - name: Move some stuff
-        run: |
-          mv artifacts/musl-latest-bridge/* artifacts/musl-latest/
-          rmdir artifacts/musl-latest-bridge
 
       - name: Install rclone
         run: |
