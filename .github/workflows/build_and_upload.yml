@@ -18,7 +18,7 @@ jobs:
             dir: gnu
           - os: ubuntu-20.04
             target: armv7-unknown-linux-musleabihf
-            dir: musl-armv7  # هدف ARMv7
+            dir: musl-armv7
           - os: macos-latest
             target: x86_64-apple-darwin
             dir: macos
@@ -51,12 +51,12 @@ jobs:
           key: ${{ matrix.target }}
           prefix-key: "lele"
 
-      - name: Build client
+      - name: Build client (Release)
         run: |
           if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ] || [ "${{ matrix.target }}" = "armv7-unknown-linux-musleabihf" ]; then
-            cross build -r --target "${{ matrix.target }}" --manifest-path binaries/geph5-client/Cargo.toml
+            cross build --release --target "${{ matrix.target }}" --manifest-path binaries/geph5-client/Cargo.toml
           else
-            cargo b -r --target "${{ matrix.target }}" --manifest-path binaries/geph5-client/Cargo.toml
+            cargo build --release --target "${{ matrix.target }}" --manifest-path binaries/geph5-client/Cargo.toml
           fi
 
       - name: Move client binaries to artifacts directory
@@ -69,11 +69,11 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: cargo install cargo-bundle --locked --version "=0.6.0" --force
 
-      - name: Create macOS .app bundle
+      - name: Create macOS .app bundle (Release)
         if: matrix.os == 'macos-latest'
         run: |
           cd binaries/geph5-client-gui
-          cargo bundle -r --target ${{ matrix.target }}
+          cargo bundle --release --target ${{ matrix.target }}
 
       - name: Create macOS .app zip
         if: matrix.os == 'macos-latest'
@@ -89,7 +89,7 @@ jobs:
           path: artifacts/${{ matrix.dir }}
 
   build-bridge-exit:
-    name: Build Bridge, Exit, and Broker (Musl)
+    name: Build Bridge, Exit, and Broker (Musl, Release)
     runs-on: ubuntu-20.04
 
     steps:
@@ -116,11 +116,11 @@ jobs:
         with:
           key: x86_64-unknown-linux-musl-bridge-exit
 
-      - name: Build bridge and exit and broker
+      - name: Build bridge, exit, and broker (Release)
         run: |
-          cargo b -r --target x86_64-unknown-linux-musl --manifest-path binaries/geph5-bridge/Cargo.toml
-          cargo b -r --target x86_64-unknown-linux-musl --manifest-path binaries/geph5-exit/Cargo.toml
-          cargo b -r --target x86_64-unknown-linux-musl --manifest-path binaries/geph5-broker/Cargo.toml
+          cargo build --release --target x86_64-unknown-linux-musl --manifest-path binaries/geph5-bridge/Cargo.toml
+          cargo build --release --target x86_64-unknown-linux-musl --manifest-path binaries/geph5-exit/Cargo.toml
+          cargo build --release --target x86_64-unknown-linux-musl --manifest-path binaries/geph5-broker/Cargo.toml
 
       - name: Move bridge and exit binaries to artifacts directory
         run: |
