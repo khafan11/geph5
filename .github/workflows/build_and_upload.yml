@@ -17,8 +17,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install musl-tools and binutils (Linux)
-        run: sudo apt-get update && sudo apt-get install -y musl-tools binutils-arm-linux-gnueabihf
+      - name: Install musl-tools, binutils, and upx (Linux)
+        run: sudo apt-get update && sudo apt-get install -y musl-tools binutils-arm-linux-gnueabihf upx
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -44,6 +44,10 @@ jobs:
       - name: Strip binary to reduce size
         run: |
           arm-linux-gnueabihf-strip target/${{ matrix.target }}/release/geph5-client
+
+      - name: Compress binary with UPX
+        run: |
+          upx --best target/${{ matrix.target }}/release/geph5-client
 
       - name: Move client binary to artifacts directory
         shell: bash
