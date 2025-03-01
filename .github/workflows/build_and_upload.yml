@@ -17,8 +17,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install musl-tools (Linux)
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Install musl-tools and binutils (Linux)
+        run: sudo apt-get update && sudo apt-get install -y musl-tools binutils-arm-linux-gnueabihf
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -40,6 +40,10 @@ jobs:
       - name: Build client (Release for ARMv7)
         run: |
           cross build --release --target "${{ matrix.target }}" --manifest-path binaries/geph5-client/Cargo.toml
+
+      - name: Strip binary to reduce size
+        run: |
+          arm-linux-gnueabihf-strip target/${{ matrix.target }}/release/geph5-client
 
       - name: Move client binary to artifacts directory
         shell: bash
