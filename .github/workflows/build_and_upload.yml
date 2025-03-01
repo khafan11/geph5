@@ -16,9 +16,9 @@ jobs:
           - os: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
             dir: gnu
-          # - os: windows-latest
-          #   target: i686-pc-windows-msvc
-          #   dir: windows
+          - os: ubuntu-20.04
+            target: armv7-unknown-linux-musleabihf
+            dir: musl-armv7  # اضافه شده برای ARMv7
           - os: macos-latest
             target: x86_64-apple-darwin
             dir: macos
@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install musl-tools (Linux)
-        if: ${{ matrix.dir == 'musl' }}
+        if: ${{ contains(matrix.dir, 'musl') }}  # تغییر داده شده برای پشتیبانی از همه اهداف musl
         run: sudo apt-get install -y musl-tools
 
       - name: Install Rust
@@ -41,8 +41,8 @@ jobs:
           override: true
           target: ${{ matrix.target }}
 
-      - name: Install cross (only for arm64)
-        if: ${{ matrix.target == 'aarch64-unknown-linux-musl' }}
+      - name: Install cross (for arm64 and armv7)
+        if: ${{ matrix.target == 'aarch64-unknown-linux-musl' || matrix.target == 'armv7-unknown-linux-musleabihf' }}
         run: cargo install cross
 
       - name: Cache cargo build
@@ -53,7 +53,7 @@ jobs:
 
       - name: Build client
         run: |
-          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
+          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ] || [ "${{ matrix.target }}" = "armv7-unknown-linux-musleabihf" ]; then
             cross build --locked --release --target "${{ matrix.target }}" --manifest-path binaries/geph5-client/Cargo.toml
           else
             cargo build --locked --release --target "${{ matrix.target }}" --manifest-path binaries/geph5-client/Cargo.toml
@@ -67,7 +67,7 @@ jobs:
 
       - name: Install cargo-bundle
         if: matrix.os == 'macos-latest'
-        run: cargo install cargo-bundle --locked --version "=0.6.0"  --force
+        run: cargo install cargo-bundle --locked --version "=0.6.0" --force
 
       - name: Create macOS .app bundle
         if: matrix.os == 'macos-latest'
@@ -134,7 +134,6 @@ jobs:
         with:
           name: musl-latest-bridge
           path: artifacts/musl
-
 
   upload:
     if: github.ref == 'refs/heads/master'
